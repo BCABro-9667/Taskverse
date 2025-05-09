@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -14,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/context/AuthContext';
-import { LayoutDashboard, UserCircle, Building, Users } from 'lucide-react'; // Added Users icon
+import { LayoutDashboard, UserCircle, Building, Users } from 'lucide-react'; 
 
 export default function Navbar() {
   const { user, isLoading } = useAuth();
@@ -61,7 +60,7 @@ export default function Navbar() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                   <Avatar className="h-9 w-9">
-                    <AvatarImage src={user.profileImageUrl || undefined} alt={user.name} data-ai-hint="profile avatar" />
+                    <AvatarImage src={user.profileImageUrl || undefined} alt={user.name || 'User Avatar'} data-ai-hint="profile avatar" />
                     <AvatarFallback>{user.name?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
                   </Avatar>
                 </Button>
@@ -76,28 +75,34 @@ export default function Navbar() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild className="md:hidden"> {/* Show in dropdown on mobile */}
-                  <Link href="/dashboard">
-                    <LayoutDashboard className="mr-2 h-4 w-4" />
-                    Dashboard
+                <DropdownMenuItem asChild className="md:hidden">
+                  <Link href="/dashboard" legacyBehavior passHref>
+                    <a>
+                      <LayoutDashboard className="mr-2 h-4 w-4" />
+                      Dashboard
+                    </a>
                   </Link>
                 </DropdownMenuItem>
-                 <DropdownMenuItem asChild className="md:hidden"> {/* Show in dropdown on mobile */}
-                  <Link href="/assignees">
-                    <Users className="mr-2 h-4 w-4" />
-                    Assignees
+                 <DropdownMenuItem asChild className="md:hidden">
+                  <Link href="/assignees" legacyBehavior passHref>
+                    <a>
+                      <Users className="mr-2 h-4 w-4" />
+                      Assignees
+                    </a>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/profile">
-                    <UserCircle className="mr-2 h-4 w-4" />
-                    Profile
+                  <Link href="/profile" legacyBehavior passHref>
+                    <a>
+                      <UserCircle className="mr-2 h-4 w-4" />
+                      Profile
+                    </a>
                   </Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <p>Loading user...</p>
+            <p>Loading user...</p> // Fallback if user is null and not loading (should not happen with default user)
           )}
         </div>
       </div>
