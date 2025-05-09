@@ -1,8 +1,9 @@
+
 'use client';
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+// import { useRouter } from 'next/navigation'; // No longer needed for logout
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,18 +15,18 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/context/AuthContext';
-import { LayoutDashboard, LogOut, Settings, UserCircle, Building } from 'lucide-react';
-import Cookies from 'js-cookie';
+import { LayoutDashboard, Settings, UserCircle, Building } from 'lucide-react';
+// import Cookies from 'js-cookie'; // No longer needed for auth status
 
 export default function Navbar() {
-  const { user, logout, isLoading } = useAuth();
-  const router = useRouter();
+  const { user, isLoading } = useAuth();
+  // const router = useRouter(); // No longer needed
 
-  const handleLogout = () => {
-    logout();
-    Cookies.remove('taskmaster_auth_status', { path: '/' });
-    router.push('/login');
-  };
+  // const handleLogout = () => { // Logout is no-op now
+  //   // logout(); // This would be from useAuth, but it's a no-op
+  //   // Cookies.remove('taskmaster_auth_status', { path: '/' }); // Cookie no longer used by middleware
+  //   // router.push('/login'); // No login page
+  // };
 
   const companyName = user?.companyName || 'TaskMaster';
   const companyLogoUrl = user?.companyLogoUrl;
@@ -84,17 +85,16 @@ export default function Navbar() {
                     Profile
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout}>
+                {/* <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => alert("Logout functionality disabled")}>
                   <LogOut className="mr-2 h-4 w-4" />
-                  Log out
-                </DropdownMenuItem>
+                  Log out (Disabled)
+                </DropdownMenuItem> */}
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button asChild>
-              <Link href="/login">Login</Link>
-            </Button>
+            // This case should not happen anymore with a default user
+            <p>Loading user...</p>
           )}
         </div>
       </div>

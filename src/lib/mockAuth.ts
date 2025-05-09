@@ -1,7 +1,8 @@
+
 import type { UserProfile } from '@/types';
 
 // Simulate a database of users
-const users: UserProfile[] = [
+export const users: UserProfile[] = [
   {
     id: 'user1',
     name: 'Demo User',

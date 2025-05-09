@@ -2,59 +2,63 @@
 "use client";
 import type { UserProfile } from '@/types';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { getUserById } from '@/lib/mockAuth'; // Assuming direct import path is fine
+import { getUserById, users as mockUsersArray } from '@/lib/mockAuth'; // Assuming direct import path is fine
 
 interface AuthContextType {
   user: UserProfile | null;
   isLoading: boolean;
-  login: (userData: UserProfile) => void;
-  logout: () => void;
+  login: (userData: UserProfile) => void; // Kept for interface consistency, but will be no-op
+  logout: () => void; // Kept for interface consistency, but will be no-op
   updateUserProfileContext: (updatedProfile: UserProfile) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Use the first user from mockAuth as the default user
+const DEFAULT_USER_ID = mockUsersArray.length > 0 ? mockUsersArray[0].id : 'user1'; // Fallback if mockUsersArray is empty
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate checking for an existing session
-    const checkSession = async () => {
+    // Simulate fetching the default user
+    const fetchDefaultUser = async () => {
       setIsLoading(true);
       try {
-        const storedUserId = localStorage.getItem('taskmaster_userid');
-        if (storedUserId) {
-          const fetchedUser = await getUserById(storedUserId); // Use mockAuth function
-          if (fetchedUser) {
-            setUser(fetchedUser);
-          } else {
-            localStorage.removeItem('taskmaster_userid'); // Clear invalid stored ID
-          }
+        const fetchedUser = await getUserById(DEFAULT_USER_ID); 
+        if (fetchedUser) {
+          setUser(fetchedUser);
+        } else {
+          // Fallback if the default user is not found (e.g. mockAuth changed)
+          // You might want to create a default mock user here if `getUserById` fails
+          console.error("Default user not found in mockAuth.ts");
+          setUser(mockUsersArray.length > 0 ? mockUsersArray[0] : null); 
         }
       } catch (error) {
-        console.error("Failed to check session:", error);
-        localStorage.removeItem('taskmaster_userid');
+        console.error("Failed to fetch default user:", error);
       } finally {
         setIsLoading(false);
       }
     };
-    checkSession();
+    fetchDefaultUser();
   }, []);
 
   const login = (userData: UserProfile) => {
-    setUser(userData);
-    localStorage.setItem('taskmaster_userid', userData.id);
+    // No-op as user is now defaulted
+    console.log("Login called, but authentication is currently disabled. User data:", userData);
   };
 
   const logout = () => {
-    setUser(null);
-    localStorage.removeItem('taskmaster_userid');
-    // Optionally, redirect to login page via router if needed outside of middleware
+    // No-op as user is now defaulted and cannot be logged out in this setup
+    console.log("Logout called, but authentication is currently disabled.");
   };
   
   const updateUserProfileContext = (updatedProfile: UserProfile) => {
-    setUser(updatedProfile);
+    // Only update if the updated profile matches the current default user's ID
+    if (user && updatedProfile.id === user.id) {
+        setUser(updatedProfile);
+    }
   };
 
   return (

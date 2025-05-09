@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -5,15 +6,15 @@ import TaskForm from '@/components/tasks/TaskForm';
 import TaskList from '@/components/tasks/TaskList';
 import { useAuth } from '@/context/AuthContext';
 import type { Task, Assignee } from '@/types';
-import { getTasks, getAssignees, updateTask as dbUpdateTask } from '@/lib/data'; // For initial load and direct client manipulation for notes
-import { toggleTaskCompletionAction, deleteTaskAction, updateTaskAction } from '@/actions/taskActions'; // Server actions
+import { getTasks, getAssignees, updateTask as dbUpdateTask } from '@/lib/data'; 
+import { toggleTaskCompletionAction, deleteTaskAction, updateTaskAction } from '@/actions/taskActions'; 
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 
 export default function DashboardPage() {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authContextLoading } = useAuth(); // isLoading here is for AuthContext initialization
   const { toast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [assignees, setAssignees] = useState<Assignee[]>([]);
@@ -23,13 +24,27 @@ export default function DashboardPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const fetchData = async () => {
-    if (!user) return;
+    // User might be null initially if AuthContext is still loading the default user
+    // but getTasks can be called without userId for now (it will return all tasks)
+    // or we can wait for user to be non-null.
+    // For simplicity, let's assume getTasks works fine if user is null initially or filters appropriately.
+    // Or, ensure user is available from context before fetching.
+    if (!user && !authContextLoading) { 
+        // If auth context is done loading and user is still null (error case for default user)
+        toast({ title: 'Error', description: 'User data not available.', variant: 'destructive' });
+        setIsLoadingData(false);
+        return;
+    }
+    if (!user && authContextLoading) { // Still waiting for default user from context
+        return;
+    }
+
     setIsLoadingData(true);
     try {
-      const [tasksData, assigneesData] = await Promise.all([
-        getTasks(user.id), // Pass userId if your getTasks filters by it
-        getAssignees(),
-      ]);
+      // Pass user?.id if getTasks strictly requires it, otherwise it might fetch all tasks or handle null userId
+      const tasksData = user ? await getTasks(user.id) : await getTasks(); 
+      const assigneesData = await getAssignees();
+      
       setTasks(tasksData.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
       setAssignees(assigneesData);
     } catch (error) {
@@ -40,20 +55,23 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    if (!authLoading && user) {
+    // Fetch data when authContextLoading is false (meaning AuthContext has initialized)
+    // and user object might be available (or default user is set)
+    if (!authContextLoading) {
       fetchData();
     }
-  }, [user, authLoading]);
+  }, [user, authContextLoading]); // Re-fetch if user changes (e.g., profile update) or context finishes loading
 
   const handleFormSubmit = (newTask: Task) => {
-    if (editingTask) { // If editing
+    if (editingTask) { 
       setTasks(prevTasks => prevTasks.map(t => t.id === newTask.id ? newTask : t).sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-    } else { // If adding new
+    } else { 
       setTasks(prevTasks => [newTask, ...prevTasks].sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
     }
     setEditingTask(undefined);
     setIsEditModalOpen(false);
-    // fetchData(); // Re-fetch to ensure data consistency after server action
+    // Optionally call fetchData() if server actions don't revalidate effectively or for more robustness
+    // fetchData(); 
   };
 
   const handleToggleComplete = async (taskId: string, isCompleted: boolean) => {
@@ -82,20 +100,17 @@ export default function DashboardPage() {
   };
   
   const handleUpdateNotes = async (taskId: string, notes: string) => {
-    // This is a client-side optimistic update + server action
-    // For notes, immediate feedback is good.
     const originalTasks = [...tasks];
     setTasks(prev => prev.map(t => t.id === taskId ? {...t, notes} : t));
 
     const result = await updateTaskAction(taskId, { notes });
     if (!result.success) {
-        setTasks(originalTasks); // Revert on error
+        setTasks(originalTasks); 
         toast({ title: 'Error', description: 'Failed to update notes.', variant: 'destructive' });
     }
-    // If success, data is already updated optimistically. Server action revalidates.
   };
 
-  if (authLoading || isLoadingData) {
+  if (authContextLoading || isLoadingData) {
     return (
       <div className="space-y-8">
         <Skeleton className="h-24 w-full" /> {/* TaskForm placeholder */}

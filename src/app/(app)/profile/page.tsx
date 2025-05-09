@@ -1,3 +1,4 @@
+
 'use client';
 
 import ProfileForm from '@/components/profile/ProfileForm';
@@ -8,9 +9,9 @@ import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function ProfilePage() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading: authContextLoading } = useAuth(); // isLoading is for AuthContext initialization
 
-  if (isLoading) {
+  if (authContextLoading) { // Wait for AuthContext to load the default user
     return (
       <div className="space-y-6">
         <Skeleton className="h-10 w-1/3" />
@@ -39,8 +40,8 @@ export default function ProfilePage() {
   }
 
   if (!user) {
-    // This case should ideally be handled by middleware redirecting to login
-    return <p>Please log in to view your profile.</p>;
+    // This case should ideally not happen if AuthContext correctly loads a default user.
+    return <p>User data could not be loaded. Please try refreshing the page.</p>;
   }
 
   return (
