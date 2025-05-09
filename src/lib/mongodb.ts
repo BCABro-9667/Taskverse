@@ -1,6 +1,11 @@
 
 import { MongoClient, Db, ObjectId } from 'mongodb';
 
+// Load environment variables if not already handled by Next.js (e.g. for scripts)
+// For Next.js app routes, .env.local is automatically loaded.
+// require('dotenv').config(); 
+
+
 const uri = process.env.MONGO_URI;
 if (!uri) {
   throw new Error('Please define the MONGO_URI environment variable inside .env.local');
@@ -28,16 +33,17 @@ if (process.env.NODE_ENV === 'development') {
 
 export async function getDb(): Promise<Db> {
   const client = await clientPromise;
-  return client.db(); // The database name is part of the MONGO_URI
+  // The database name is part of the MONGO_URI if specified like:
+  // mongodb+srv://user:pass@host/yourdbname?retryWrites=true&w=majority
+  // If not, you might need to specify it here: client.db("yourdbname")
+  // Based on the provided URI, 'task_management' should be the DB name.
+  return client.db(); 
 }
 
 // Helper to convert string ID to ObjectId
 export function toObjectId(id: string): ObjectId {
   if (!ObjectId.isValid(id)) {
     // This helps catch errors early if a non-ObjectID string is passed.
-    // Depending on your use case, you might want to handle this differently,
-    // e.g., by returning null or letting MongoDB driver attempt conversion.
-    // For now, we assume valid ObjectId strings are passed or it's an error.
     throw new Error(`Invalid ID format for ObjectId: ${id}`);
   }
   return new ObjectId(id);
