@@ -10,7 +10,8 @@ import { revalidatePath } from 'next/cache';
 import { 
   updateUserProfile as dbUpdateUserProfile,
   updateUserPassword as dbUpdateUserPassword,
-  getUserById
+  getUserById as dbGetUserById,
+  loginUser as dbLoginUser // Renamed from apiLoginUser if previously aliased
 } from '@/lib/mockAuth';
 import type { UserProfile } from '@/types';
 
@@ -42,5 +43,31 @@ export async function changePasswordAction(userId: string, newPassword_input: st
         message = error.message;
     }
     return { success: false, error: message };
+  }
+}
+
+// New action to get user by ID, specifically for session restoration or general fetch
+export async function getUserByIdAction(userId: string): Promise<UserProfile | null> {
+  try {
+    const user = await dbGetUserById(userId);
+    return user || null;
+  } catch (error) {
+    console.error('Error in getUserByIdAction:', error);
+    return null;
+  }
+}
+
+// New action for user login
+export async function loginUserByCredentialsAction(email: string, password_input: string): Promise<{ success: boolean; user?: UserProfile; error?: string }> {
+  try {
+    const user = await dbLoginUser(email, password_input);
+    if (user) {
+      return { success: true, user };
+    } else {
+      return { success: false, error: "Invalid credentials or user not found." };
+    }
+  } catch (error) {
+    console.error('Error in loginUserByCredentialsAction:', error);
+    return { success: false, error: "An error occurred during login." };
   }
 }

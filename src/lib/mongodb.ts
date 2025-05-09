@@ -3,10 +3,11 @@ import { MongoClient, Db, ObjectId } from 'mongodb';
 
 // Load environment variables if not already handled by Next.js (e.g. for scripts)
 // For Next.js app routes, .env.local is automatically loaded.
-// require('dotenv').config(); 
-
+// import dotenv from 'dotenv'; // Avoid direct import in files used by client components
+// dotenv.config(); // This should not be here if file can be client-side bundled
 
 const uri = process.env.MONGO_URI;
+
 if (!uri) {
   throw new Error('Please define the MONGO_URI environment variable inside .env.local');
 }
@@ -33,17 +34,17 @@ if (process.env.NODE_ENV === 'development') {
 
 export async function getDb(): Promise<Db> {
   const client = await clientPromise;
-  // The database name is part of the MONGO_URI if specified like:
-  // mongodb+srv://user:pass@host/yourdbname?retryWrites=true&w=majority
-  // If not, you might need to specify it here: client.db("yourdbname")
-  // Based on the provided URI, 'task_management' should be the DB name.
+  // Ensure the MONGO_URI includes the database name or specify it here.
+  // Example: mongodb+srv://user:pass@host/YOUR_DB_NAME?retryWrites=true&w=majority
+  // If the URI doesn't specify the db name, it might connect to a default db like 'test'.
+  // The current URI is: mongodb+srv://Avdhesh1:ya4XYnQUEtYhv5kr@cluster0.0uojesi.mongodb.net/task_management?retryWrites=true&w=majority
+  // So, client.db() without arguments should use 'task_management'.
   return client.db(); 
 }
 
 // Helper to convert string ID to ObjectId
 export function toObjectId(id: string): ObjectId {
   if (!ObjectId.isValid(id)) {
-    // This helps catch errors early if a non-ObjectID string is passed.
     throw new Error(`Invalid ID format for ObjectId: ${id}`);
   }
   return new ObjectId(id);
