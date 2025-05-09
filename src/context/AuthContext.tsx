@@ -4,6 +4,9 @@ import type { UserProfile } from '@/types';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 // Import server actions instead of direct mockAuth functions
 import { getUserByIdAction, loginUserByCredentialsAction } from '@/actions/userActions'; 
+import Cookies from 'js-cookie'; // Import js-cookie
+
+const AUTH_COOKIE_NAME = 'userId'; // Consistent with middleware
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -22,16 +25,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const checkUserSession = async () => {
       setIsLoading(true);
-      const storedUserId = localStorage.getItem('userId');
+      const storedUserId = Cookies.get(AUTH_COOKIE_NAME); // Check cookie first
       if (storedUserId) {
         try {
           // Use server action to fetch user data
           const fetchedUser = await getUserByIdAction(storedUserId);
-          setUser(fetchedUser);
+          if (fetchedUser) {
+            setUser(fetchedUser);
+            localStorage.setItem('userId', fetchedUser.id); // Sync localStorage if cookie was source
+          } else {
+            // User ID in cookie is invalid or user deleted
+            localStorage.removeItem('userId');
+            Cookies.remove(AUTH_COOKIE_NAME, { path: '/' });
+            setUser(null);
+          }
         } catch (error) {
           console.error("Failed to fetch session user via action:", error);
-          localStorage.removeItem('userId'); // Clear invalid session
+          localStorage.removeItem('userId');
+          Cookies.remove(AUTH_COOKIE_NAME, { path: '/' }); // Clear invalid session
           setUser(null);
+        }
+      } else {
+        // No cookie, check localStorage as a fallback (e.g., if cookie was session-only and expired but user kept tab open)
+        const lsUserId = localStorage.getItem('userId');
+        if (lsUserId) {
+            try {
+                 const fetchedUser = await getUserByIdAction(lsUserId);
+                 if (fetchedUser) {
+                    setUser(fetchedUser);
+                    Cookies.set(AUTH_COOKIE_NAME, fetchedUser.id, { path: '/' }); // Re-set cookie
+                 } else {
+                    localStorage.removeItem('userId');
+                    setUser(null);
+                 }
+            } catch (error) {
+                console.error("Failed to fetch session user from localStorage backup:", error);
+                localStorage.removeItem('userId');
+                setUser(null);
+            }
         }
       }
       setIsLoading(false);
@@ -47,6 +78,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (result.success && result.user) {
         setUser(result.user);
         localStorage.setItem('userId', result.user.id);
+        Cookies.set(AUTH_COOKIE_NAME, result.user.id, { path: '/' }); // Set cookie
         setIsLoading(false);
         return { success: true, user: result.user };
       } else {
@@ -63,9 +95,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = () => {
     setUser(null);
     localStorage.removeItem('userId');
+    Cookies.remove(AUTH_COOKIE_NAME, { path: '/' }); // Remove cookie
     // Optionally redirect to login page
     if (typeof window !== 'undefined') {
-      window.location.href = '/login';
+      // Wait for state to clear before redirecting to give react a chance to unmount things
+      // router.push itself might be enough if used from a component, but this is a direct call.
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 0);
     }
   };
   
