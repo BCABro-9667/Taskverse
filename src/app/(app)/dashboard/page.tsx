@@ -21,7 +21,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 
 
 export default function DashboardPage() {
-  const { isLoading: authContextLoading } = useAuth(); // isLoading here is for AuthContext initialization
+  const { user, isLoading: authContextLoading } = useAuth(); // isLoading here is for AuthContext initialization
   const { toast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [assignees, setAssignees] = useState<Assignee[]>([]);
@@ -34,8 +34,7 @@ export default function DashboardPage() {
     setIsLoadingData(true);
     try {
       // Use Server Actions to fetch data
-      // For now, as auth is disabled, getTasksAction won't use userId effectively yet.
-      const tasksData = await getTasksAction(); 
+      const tasksData = await getTasksAction(user?.id); 
       const assigneesData = await getAssigneesAction();
       
       setTasks(tasksData.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
@@ -55,7 +54,7 @@ export default function DashboardPage() {
     if (!authContextLoading) {
       fetchData();
     }
-  }, [authContextLoading]); // Re-fetch if auth context finishes loading
+  }, [authContextLoading, user]); // Re-fetch if auth context finishes loading or user changes
 
   const handleFormSubmit = (newTask: Task) => {
     if (editingTask) { 
@@ -66,7 +65,7 @@ export default function DashboardPage() {
     setEditingTask(undefined);
     setIsEditModalOpen(false);
     // Optionally call fetchData() if server actions don't revalidate effectively or for more robustness
-    // fetchData(); // Calling this might be redundant if revalidatePath works well, but good for ensuring data sync
+    fetchData(); // Calling this might be redundant if revalidatePath works well, but good for ensuring data sync
   };
 
   const handleToggleComplete = async (taskId: string, isCompleted: boolean) => {
@@ -110,7 +109,7 @@ export default function DashboardPage() {
       <div className="space-y-8">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold tracking-tight">My Tasks</h1>
-          <ThemeToggle />
+          <Skeleton className="h-8 w-8 rounded-md" /> {/* ThemeToggle placeholder */}
         </div>
         <Skeleton className="h-24 w-full" /> {/* TaskForm placeholder */}
         <Skeleton className="h-64 w-full" /> {/* Pending Tasks placeholder */}
@@ -130,7 +129,7 @@ export default function DashboardPage() {
       </div>
       
       {!editingTask && !isEditModalOpen && (
-        <TaskForm onFormSubmit={handleFormSubmit} />
+        <TaskForm onFormSubmit={handleFormSubmit} assignees={assignees} />
       )}
 
       <Dialog open={isEditModalOpen} onOpenChange={(open) => {
@@ -148,6 +147,7 @@ export default function DashboardPage() {
             <TaskForm 
               taskToEdit={editingTask} 
               onFormSubmit={handleFormSubmit}
+              assignees={assignees}
               onCancel={() => {
                 setIsEditModalOpen(false);
                 setEditingTask(undefined);
@@ -180,3 +180,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -24,12 +25,14 @@ import { useEffect, useState, type FC } from 'react';
 import AssigneeModal from './AssigneeModal';
 import type { Task, Assignee } from '@/types';
 import { createTaskAction, updateTaskAction } from '@/actions/taskActions';
-import { getAssigneesAction } from '@/actions/assigneeActions'; // Import Server Action
+import { useAuth } from '@/context/AuthContext';
+
 
 interface TaskFormProps {
   taskToEdit?: Task;
   onFormSubmit: (task: Task) => void; 
   onCancel?: () => void;
+  assignees: Assignee[]; // Added assignees prop
 }
 
 const formSchema = z.object({
@@ -38,9 +41,10 @@ const formSchema = z.object({
   dueDate: z.date({ required_error: 'A due date is required.' }),
 });
 
-const TaskForm: FC<TaskFormProps> = ({ taskToEdit, onFormSubmit, onCancel }) => {
+const TaskForm: FC<TaskFormProps> = ({ taskToEdit, onFormSubmit, onCancel, assignees: initialAssignees }) => {
   const { toast } = useToast();
-  const [assignees, setAssignees] = useState<Assignee[]>([]);
+  const { user } = useAuth();
+  const [assignees, setAssignees] = useState<Assignee[]>(initialAssignees);
   const [isAssigneeModalOpen, setIsAssigneeModalOpen] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -53,21 +57,8 @@ const TaskForm: FC<TaskFormProps> = ({ taskToEdit, onFormSubmit, onCancel }) => 
   });
   
   useEffect(() => {
-    async function fetchAssignees() {
-      try {
-        const data = await getAssigneesAction(); // Use Server Action
-        setAssignees(data);
-      } catch (error) {
-        console.error("Failed to fetch assignees:", error);
-        toast({
-          title: "Error",
-          description: "Could not load assignees.",
-          variant: "destructive",
-        });
-      }
-    }
-    fetchAssignees();
-  }, [toast]); // Added toast to dependency array as it's used in catch
+    setAssignees(initialAssignees);
+  }, [initialAssignees]);
 
   useEffect(() => {
     if (taskToEdit) {
@@ -82,14 +73,32 @@ const TaskForm: FC<TaskFormProps> = ({ taskToEdit, onFormSubmit, onCancel }) => 
   }, [taskToEdit, form]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!user) {
+      toast({
+        title: 'Error',
+        description: 'You must be logged in to create or update tasks.',
+        variant: 'destructive',
+      });
+      return;
+    }
     const taskData = {
       ...values,
-      dueDate: format(values.dueDate, 'yyyy-MM-dd'), 
+      dueDate: format(values.dueDate, 'yyyy-MM-dd'),
+      userId: user.id, // Associate task with current user
     };
 
     let result;
     if (taskToEdit) {
-      result = await updateTaskAction(taskToEdit.id, taskData);
+      // For update, ensure we don't change userId if it's already set and different
+      // or handle this logic based on requirements (e.g., admin editing any task)
+      const updatePayload = { ...taskData };
+      if(taskToEdit.userId && taskToEdit.userId !== user.id) {
+        // Potentially disallow editing if task belongs to another user, or allow if admin
+        // For now, we assume user can edit their own tasks.
+        // If taskToEdit.userId is undefined, it means it's an older task, associate it now.
+        // updatePayload.userId = taskToEdit.userId || user.id;
+      }
+      result = await updateTaskAction(taskToEdit.id, updatePayload);
     } else {
       result = await createTaskAction(taskData);
     }
@@ -146,7 +155,7 @@ const TaskForm: FC<TaskFormProps> = ({ taskToEdit, onFormSubmit, onCancel }) => 
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {assignees.map((assignee) => (
+                    {assignees.filter(a => a.status === 'active').map((assignee) => (
                       <SelectItem key={assignee.id} value={assignee.id}>
                         {assignee.name}
                       </SelectItem>
@@ -213,9 +222,9 @@ const TaskForm: FC<TaskFormProps> = ({ taskToEdit, onFormSubmit, onCancel }) => 
           </div>
         </form>
          <div className="md:hidden"> 
-            <FormMessage>{form.formState.errors.title?.message}</FormMessage>
-            <FormMessage>{form.formState.errors.assigneeId?.message}</FormMessage>
-            <FormMessage>{form.formState.errors.dueDate?.message}</FormMessage>
+            {form.formState.errors.title?.message && <FormMessage>{form.formState.errors.title?.message}</FormMessage>}
+            {form.formState.errors.assigneeId?.message && <FormMessage>{form.formState.errors.assigneeId?.message}</FormMessage>}
+            {form.formState.errors.dueDate?.message && <FormMessage>{form.formState.errors.dueDate?.message}</FormMessage>}
         </div>
       </Form>
       <AssigneeModal
@@ -225,5 +234,5 @@ const TaskForm: FC<TaskFormProps> = ({ taskToEdit, onFormSubmit, onCancel }) => 
       />
     </>
   );
-}
+};
 export default TaskForm;
