@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { ReactNode } from 'react';
@@ -22,7 +23,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
         {children}
       </main>
       <footer className="py-6 text-center text-sm text-muted-foreground border-t no-print">
-        {currentYear !== null ? `© ${currentYear} TaskMaster. All rights reserved.` : '© TaskMaster. All rights reserved.'}
+        <span suppressHydrationWarning>
+          {currentYear !== null ? `© ${currentYear} TaskMaster. All rights reserved.` : '© TaskMaster. All rights reserved.'}
+        </span>
       </footer>
     </div>
   );
