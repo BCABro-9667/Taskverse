@@ -1,7 +1,7 @@
 import { MongoClient, Db, ObjectId } from 'mongodb';
 
 // process.env.MONGO_URI will be automatically populated by Next.js from .env.local on the server-side
-const uri = process.env.MONGO_URI;
+const uri = "mongodb+srv://Avdhesh1:ya4XYnQUEtYhv5kr@cluster0.0uojesi.mongodb.net/task_management?retryWrites=true&w=majority";
 
 if (!uri) {
   throw new Error('Please define the MONGO_URI environment variable inside .env.local');

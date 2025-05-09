@@ -4,7 +4,7 @@
 import type { Assignee, Task } from '@/types';
 import { useEffect, useState } from 'react';
 import { getAssigneesAction } from '@/actions/assigneeActions';
-import { getTasks as getTasksData } from '@/lib/data'; // Direct data fetch for tasks
+import { getTasksAction } from '@/actions/taskActions'; // Use server action
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -27,7 +27,7 @@ export default function AssigneeProgressTab() {
       setIsLoading(true);
       try {
         const assignees = await getAssigneesAction();
-        const tasks = await getTasksData(); // Assuming this fetches all tasks
+        const tasks = await getTasksAction(); // Use server action to fetch all tasks
 
         const activeAssignees = assignees.filter(a => a.status === 'active');
 
@@ -44,7 +44,9 @@ export default function AssigneeProgressTab() {
         });
         setChartData(data);
       } catch (error) {
+        console.error("AssigneeProgressTab fetchData error:", error);
         toast({ title: 'Error', description: 'Failed to load progress data.', variant: 'destructive' });
+        setChartData([]); // Ensure chartData is empty on error
       } finally {
         setIsLoading(false);
       }

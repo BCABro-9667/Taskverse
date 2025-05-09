@@ -12,7 +12,8 @@ import {
   addTask as dbAddTask, 
   updateTask as dbUpdateTask, 
   deleteTask as dbDeleteTask,
-  addAssigneeData as dbAddAssignee // Updated to use addAssigneeData
+  addAssigneeData as dbAddAssignee, // Updated to use addAssigneeData
+  getTasks as dbGetTasks // Import getTasks from lib/data
 } from '@/lib/data';
 import type { Task, Assignee } from '@/types';
 
@@ -22,6 +23,7 @@ export async function createTaskAction(taskData: Omit<Task, 'id' | 'createdAt' |
     revalidatePath('/dashboard');
     return { success: true, task: newTask };
   } catch (error) {
+    console.error('createTaskAction error:', error);
     return { success: false, error: 'Failed to create task.' };
   }
 }
@@ -34,6 +36,7 @@ export async function updateTaskAction(taskId: string, updates: Partial<Task>) {
     revalidatePath(`/tasks/${updatedTask.assigneeId}`); // Potentially revalidate assignee page
     return { success: true, task: updatedTask };
   } catch (error) {
+    console.error('updateTaskAction error:', error);
     return { success: false, error: 'Failed to update task.' };
   }
 }
@@ -46,6 +49,7 @@ export async function toggleTaskCompletionAction(taskId: string, isCompleted: bo
     revalidatePath(`/tasks/${updatedTask.assigneeId}`);
     return { success: true, task: updatedTask };
   } catch (error) {
+    console.error('toggleTaskCompletionAction error:', error);
     return { success: false, error: 'Failed to update task completion.' };
   }
 }
@@ -57,6 +61,7 @@ export async function deleteTaskAction(taskId: string) {
     // Potentially revalidate relevant assignee pages if tasks are shown there
     return { success: true };
   } catch (error) {
+    console.error('deleteTaskAction error:', error);
     return { success: false, error: 'Failed to delete task.' };
   }
 }
@@ -72,6 +77,17 @@ export async function addAssigneeAction(assigneeData: Omit<Assignee, 'id'>) {
     revalidatePath('/assignees'); // Also revalidate assignees page
     return { success: true, assignee: newAssignee };
   } catch (error) {
+    console.error('addAssigneeAction error:', error);
     return { success: false, error: 'Failed to add assignee.' };
+  }
+}
+
+// New Server Action to get tasks
+export async function getTasksAction(userId?: string): Promise<Task[]> {
+  try {
+    return await dbGetTasks(userId);
+  } catch (error) {
+    console.error('getTasksAction error:', error);
+    return []; // Return empty array on error to prevent frontend crashes
   }
 }
