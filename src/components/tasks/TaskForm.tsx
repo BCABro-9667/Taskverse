@@ -20,15 +20,15 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { CalendarIcon, PlusCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { useEffect, useState, type FC } from 'react'; // Added FC for type hint
+import { useEffect, useState, type FC } from 'react';
 import AssigneeModal from './AssigneeModal';
 import type { Task, Assignee } from '@/types';
-import { createTaskAction, updateTaskAction } from '@/actions/taskActions'; // Using server actions
-import { getAssignees } from '@/lib/data'; // For fetching assignees client-side for dropdown
+import { createTaskAction, updateTaskAction } from '@/actions/taskActions';
+import { getAssigneesAction } from '@/actions/assigneeActions'; // Import Server Action
 
 interface TaskFormProps {
   taskToEdit?: Task;
-  onFormSubmit: (task: Task) => void; // Callback after successful submission
+  onFormSubmit: (task: Task) => void; 
   onCancel?: () => void;
 }
 
@@ -54,11 +54,20 @@ const TaskForm: FC<TaskFormProps> = ({ taskToEdit, onFormSubmit, onCancel }) => 
   
   useEffect(() => {
     async function fetchAssignees() {
-      const data = await getAssignees(); // Direct call for client-side dropdown population
-      setAssignees(data);
+      try {
+        const data = await getAssigneesAction(); // Use Server Action
+        setAssignees(data);
+      } catch (error) {
+        console.error("Failed to fetch assignees:", error);
+        toast({
+          title: "Error",
+          description: "Could not load assignees.",
+          variant: "destructive",
+        });
+      }
     }
     fetchAssignees();
-  }, []);
+  }, [toast]); // Added toast to dependency array as it's used in catch
 
   useEffect(() => {
     if (taskToEdit) {
@@ -75,7 +84,7 @@ const TaskForm: FC<TaskFormProps> = ({ taskToEdit, onFormSubmit, onCancel }) => 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     const taskData = {
       ...values,
-      dueDate: format(values.dueDate, 'yyyy-MM-dd'), // Ensure date is string
+      dueDate: format(values.dueDate, 'yyyy-MM-dd'), 
     };
 
     let result;
@@ -91,7 +100,7 @@ const TaskForm: FC<TaskFormProps> = ({ taskToEdit, onFormSubmit, onCancel }) => 
         description: `Task "${result.task.title}" has been ${taskToEdit ? 'updated' : 'added'}.`,
       });
       onFormSubmit(result.task);
-      if (!taskToEdit) form.reset({ title: '', assigneeId: '', dueDate: new Date()}); // Reset for new task
+      if (!taskToEdit) form.reset({ title: '', assigneeId: '', dueDate: new Date()}); 
     } else {
       toast({
         title: 'Error',
@@ -103,7 +112,7 @@ const TaskForm: FC<TaskFormProps> = ({ taskToEdit, onFormSubmit, onCancel }) => 
   
   const handleAssigneeAdded = (newAssignee: Assignee) => {
     setAssignees(prev => [...prev, newAssignee]);
-    form.setValue('assigneeId', newAssignee.id); // Auto-select new assignee
+    form.setValue('assigneeId', newAssignee.id); 
   };
 
   return (
@@ -155,7 +164,7 @@ const TaskForm: FC<TaskFormProps> = ({ taskToEdit, onFormSubmit, onCancel }) => 
           <FormField
             control={form.control}
             name="dueDate"
-            render={({ field }) => ( // Corrected: Added return statement implicitly by removing curly braces or explicitly
+            render={({ field }) => (
               <FormItem className="flex flex-col w-full md:w-auto">
                 <FormLabel className="sr-only md:not-sr-only">Due Date</FormLabel>
                 <Popover>
@@ -203,7 +212,7 @@ const TaskForm: FC<TaskFormProps> = ({ taskToEdit, onFormSubmit, onCancel }) => 
             )}
           </div>
         </form>
-         <div className="md:hidden"> {/* Show field errors below form on mobile */}
+         <div className="md:hidden"> 
             <FormMessage>{form.formState.errors.title?.message}</FormMessage>
             <FormMessage>{form.formState.errors.assigneeId?.message}</FormMessage>
             <FormMessage>{form.formState.errors.dueDate?.message}</FormMessage>
