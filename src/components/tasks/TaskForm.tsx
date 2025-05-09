@@ -20,7 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { CalendarIcon, PlusCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FC } from 'react'; // Added FC for type hint
 import AssigneeModal from './AssigneeModal';
 import type { Task, Assignee } from '@/types';
 import { createTaskAction, updateTaskAction } from '@/actions/taskActions'; // Using server actions
@@ -38,7 +38,7 @@ const formSchema = z.object({
   dueDate: z.date({ required_error: 'A due date is required.' }),
 });
 
-export default function TaskForm({ taskToEdit, onFormSubmit, onCancel }: TaskFormProps) {
+const TaskForm: FC<TaskFormProps> = ({ taskToEdit, onFormSubmit, onCancel }) => {
   const { toast } = useToast();
   const [assignees, setAssignees] = useState<Assignee[]>([]);
   const [isAssigneeModalOpen, setIsAssigneeModalOpen] = useState(false);
@@ -155,41 +155,43 @@ export default function TaskForm({ taskToEdit, onFormSubmit, onCancel }: TaskFor
           <FormField
             control={form.control}
             name="dueDate"
-            render={({ field }) => (
-              <FormItem className="flex flex-col w-full md:w-auto">
-                 <FormLabel className="sr-only md:not-sr-only">Due Date</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
-                        variant={'outline'}
-                        className={cn(
-                          'pl-3 text-left font-normal',
-                          !field.value && 'text-muted-foreground'
-                        )}
-                      >
-                        {field.value ? (
-                          format(field.value, 'PPP')
-                        ) : (
-                          <span>Pick a date</span>
-                        )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value}
-                      onSelect={field.onChange}
-                      disabled={(date) => date &lt; new Date(new Date().setHours(0,0,0,0))} // Disable past dates
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-                <FormMessage className="md:hidden" />
-              </FormItem>
-            )}
+            render={({ field }) => {
+              return (
+                <FormItem className="flex flex-col w-full md:w-auto">
+                  <FormLabel className="sr-only md:not-sr-only">Due Date</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant={'outline'}
+                          className={cn(
+                            'pl-3 text-left font-normal',
+                            !field.value && 'text-muted-foreground'
+                          )}
+                        >
+                          {field.value ? (
+                            format(field.value, 'PPP')
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage className="md:hidden" />
+                </FormItem>
+              );
+            }}
           />
           
           <div className="flex space-x-2 pt-2 md:pt-0">
@@ -217,3 +219,4 @@ export default function TaskForm({ taskToEdit, onFormSubmit, onCancel }: TaskFor
     </>
   );
 }
+export default TaskForm;
