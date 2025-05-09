@@ -3,7 +3,6 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-// import { useRouter } from 'next/navigation'; // No longer needed for logout
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,18 +14,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/context/AuthContext';
-import { LayoutDashboard, Settings, UserCircle, Building } from 'lucide-react';
-// import Cookies from 'js-cookie'; // No longer needed for auth status
+import { LayoutDashboard, UserCircle, Building, Users } from 'lucide-react'; // Added Users icon
 
 export default function Navbar() {
   const { user, isLoading } = useAuth();
-  // const router = useRouter(); // No longer needed
-
-  // const handleLogout = () => { // Logout is no-op now
-  //   // logout(); // This would be from useAuth, but it's a no-op
-  //   // Cookies.remove('taskmaster_auth_status', { path: '/' }); // Cookie no longer used by middleware
-  //   // router.push('/login'); // No login page
-  // };
 
   const companyName = user?.companyName || 'TaskMaster';
   const companyLogoUrl = user?.companyLogoUrl;
@@ -51,6 +42,18 @@ export default function Navbar() {
         </Link>
 
         <div className="flex items-center gap-4">
+          <nav className="hidden md:flex gap-2">
+            <Button variant="ghost" asChild>
+              <Link href="/dashboard">
+                <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
+              </Link>
+            </Button>
+            <Button variant="ghost" asChild>
+              <Link href="/assignees">
+                <Users className="mr-2 h-4 w-4" /> Assignees
+              </Link>
+            </Button>
+          </nav>
           {isLoading ? (
             <div className="h-8 w-8 rounded-full bg-muted animate-pulse"></div>
           ) : user ? (
@@ -73,10 +76,16 @@ export default function Navbar() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
+                <DropdownMenuItem asChild className="md:hidden"> {/* Show in dropdown on mobile */}
                   <Link href="/dashboard">
                     <LayoutDashboard className="mr-2 h-4 w-4" />
                     Dashboard
+                  </Link>
+                </DropdownMenuItem>
+                 <DropdownMenuItem asChild className="md:hidden"> {/* Show in dropdown on mobile */}
+                  <Link href="/assignees">
+                    <Users className="mr-2 h-4 w-4" />
+                    Assignees
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
@@ -85,15 +94,9 @@ export default function Navbar() {
                     Profile
                   </Link>
                 </DropdownMenuItem>
-                {/* <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => alert("Logout functionality disabled")}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Log out (Disabled)
-                </DropdownMenuItem> */}
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            // This case should not happen anymore with a default user
             <p>Loading user...</p>
           )}
         </div>

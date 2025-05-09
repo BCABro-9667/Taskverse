@@ -1,3 +1,4 @@
+
 // This file would typically contain server actions.
 // Due to the complexity of setting up Server Actions with mocked data
 // and revalidation in this environment, these functions will be called directly
@@ -11,7 +12,7 @@ import {
   addTask as dbAddTask, 
   updateTask as dbUpdateTask, 
   deleteTask as dbDeleteTask,
-  addAssignee as dbAddAssignee
+  addAssigneeData as dbAddAssignee // Updated to use addAssigneeData
 } from '@/lib/data';
 import type { Task, Assignee } from '@/types';
 
@@ -60,10 +61,15 @@ export async function deleteTaskAction(taskId: string) {
   }
 }
 
+// This action is typically used by the TaskForm's inline assignee creation.
+// It should ensure new assignees get a default status.
 export async function addAssigneeAction(assigneeData: Omit<Assignee, 'id'>) {
   try {
-    const newAssignee = await dbAddAssignee(assigneeData);
+    // Ensure status is 'active' if not provided, matching AssigneeModal logic
+    const dataWithStatus = { ...assigneeData, status: assigneeData.status || 'active' } as Omit<Assignee, 'id'>;
+    const newAssignee = await dbAddAssignee(dataWithStatus);
     revalidatePath('/dashboard'); // Revalidate dashboard as assignee list might be used in TaskForm
+    revalidatePath('/assignees'); // Also revalidate assignees page
     return { success: true, assignee: newAssignee };
   } catch (error) {
     return { success: false, error: 'Failed to add assignee.' };

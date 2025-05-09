@@ -1,3 +1,4 @@
+
 import type { Task, Assignee, UserProfile } from '@/types';
 import { formatISO, subDays, addDays } from 'date-fns';
 
@@ -10,9 +11,9 @@ let tasks: Task[] = [
 ];
 
 let assignees: Assignee[] = [
-  { id: 'assignee1', name: 'Alice Wonderland', designation: 'Frontend Developer' },
-  { id: 'assignee2', name: 'Bob The Builder', designation: 'UI/UX Designer' },
-  { id: 'assignee3', name: 'Charlie Brown', designation: 'Backend Developer' },
+  { id: 'assignee1', name: 'Alice Wonderland', designation: 'Frontend Developer', status: 'active' },
+  { id: 'assignee2', name: 'Bob The Builder', designation: 'UI/UX Designer', status: 'active' },
+  { id: 'assignee3', name: 'Charlie Brown', designation: 'Backend Developer', status: 'inactive' },
 ];
 
 
@@ -61,14 +62,33 @@ export async function getAssigneeById(id: string): Promise<Assignee | undefined>
     return JSON.parse(JSON.stringify(assignees.find(a => a.id === id)));
 }
 
-export async function addAssignee(assigneeData: Omit<Assignee, 'id'>): Promise<Assignee> {
+// Renamed from addAssignee to addAssigneeData to avoid confusion with action
+export async function addAssigneeData(assigneeData: Omit<Assignee, 'id'>): Promise<Assignee> {
   const newAssignee: Assignee = {
-    ...assigneeData,
     id: `assignee${Date.now()}`,
+    name: assigneeData.name,
+    designation: assigneeData.designation,
+    status: assigneeData.status || 'active', // Default to active if not provided
   };
   assignees.push(newAssignee);
   return JSON.parse(JSON.stringify(newAssignee));
 }
+
+export async function updateAssigneeData(id: string, updates: Partial<Omit<Assignee, 'id'>>): Promise<Assignee | null> {
+  const assigneeIndex = assignees.findIndex(a => a.id === id);
+  if (assigneeIndex !== -1) {
+    assignees[assigneeIndex] = { ...assignees[assigneeIndex], ...updates };
+    return JSON.parse(JSON.stringify(assignees[assigneeIndex]));
+  }
+  return null;
+}
+
+export async function deleteAssigneeData(id: string): Promise<boolean> {
+  const initialLength = assignees.length;
+  assignees = assignees.filter(a => a.id !== id);
+  return assignees.length < initialLength;
+}
+
 
 export async function getAssigneeByName(name: string): Promise<Assignee | undefined> {
   return JSON.parse(JSON.stringify(assignees.find(a => a.name === name)));

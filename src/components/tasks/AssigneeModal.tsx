@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -22,7 +23,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { addAssigneeAction } from '@/actions/taskActions'; // Using the server action
+import { addAssigneeAction } from '@/actions/taskActions'; 
 import type { Assignee } from '@/types';
 
 interface AssigneeModalProps {
@@ -47,7 +48,13 @@ export default function AssigneeModal({ isOpen, onClose, onAssigneeAdded }: Assi
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    const result = await addAssigneeAction(values);
+    // Add default status when creating assignee through this modal
+    const assigneeDataWithStatus: Omit<Assignee, 'id'> = {
+      ...values,
+      status: 'active',
+    };
+    
+    const result = await addAssigneeAction(assigneeDataWithStatus);
     if (result.success && result.assignee) {
       toast({
         title: 'Assignee Added',
@@ -71,7 +78,7 @@ export default function AssigneeModal({ isOpen, onClose, onAssigneeAdded }: Assi
         <DialogHeader>
           <DialogTitle>Add New Assignee</DialogTitle>
           <DialogDescription>
-            Enter the details for the new assignee.
+            Enter the details for the new assignee. They will be added as 'active'.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>

@@ -1,7 +1,9 @@
+
 export type Assignee = {
   id: string;
   name: string;
   designation?: string;
+  status: 'active' | 'inactive';
 };
 
 export type Task = {
