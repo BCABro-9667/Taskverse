@@ -8,7 +8,7 @@ import { getUserByIdAction, loginUserByCredentialsAction } from '@/actions/userA
 interface AuthContextType {
   user: UserProfile | null;
   isLoading: boolean;
-  login: (email: string, password_input: string) => Promise<{success: boolean, error?: string}>;
+  login: (email: string, password_input: string) => Promise<{success: boolean, user?: UserProfile, error?: string}>;
   logout: () => void;
   updateUserProfileContext: (updatedProfile: UserProfile) => void;
 }
@@ -48,7 +48,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(result.user);
         localStorage.setItem('userId', result.user.id);
         setIsLoading(false);
-        return { success: true };
+        return { success: true, user: result.user };
       } else {
         setIsLoading(false);
         return { success: false, error: result.error || "Login failed." };
@@ -63,6 +63,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = () => {
     setUser(null);
     localStorage.removeItem('userId');
+    // Optionally redirect to login page
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    }
   };
   
   const updateUserProfileContext = (updatedProfile: UserProfile) => {
@@ -85,3 +89,4 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+

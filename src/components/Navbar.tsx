@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -13,18 +14,27 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/context/AuthContext';
-import { LayoutDashboard, UserCircle, Building, Users } from 'lucide-react'; 
+import { LayoutDashboard, UserCircle, Building, Users, LogOut } from 'lucide-react'; 
+import { useRouter } from 'next/navigation';
+
 
 export default function Navbar() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, logout } = useAuth();
+  const router = useRouter();
 
   const companyName = user?.companyName || 'TaskMaster';
   const companyLogoUrl = user?.companyLogoUrl;
 
+  const handleLogout = () => {
+    logout();
+    // AuthContext's logout should handle redirection, or you can do it here
+    // router.push('/login'); // This might be redundant if AuthContext handles it
+  };
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-card shadow-sm no-print">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link href="/dashboard" className="flex items-center gap-2">
+        <Link href={user ? "/dashboard" : "/login"} className="flex items-center gap-2">
           {companyLogoUrl ? (
             <Image 
               src={companyLogoUrl} 
@@ -41,18 +51,20 @@ export default function Navbar() {
         </Link>
 
         <div className="flex items-center gap-4">
-          <nav className="hidden md:flex gap-2">
-            <Button variant="ghost" asChild>
-              <Link href="/dashboard">
-                <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
-              </Link>
-            </Button>
-            <Button variant="ghost" asChild>
-              <Link href="/assignees">
-                <Users className="mr-2 h-4 w-4" /> Assignees
-              </Link>
-            </Button>
-          </nav>
+          { user && (
+            <nav className="hidden md:flex gap-2">
+              <Button variant="ghost" asChild>
+                <Link href="/dashboard">
+                  <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
+                </Link>
+              </Button>
+              <Button variant="ghost" asChild>
+                <Link href="/assignees">
+                  <Users className="mr-2 h-4 w-4" /> Assignees
+                </Link>
+              </Button>
+            </nav>
+          )}
           {isLoading ? (
             <div className="h-8 w-8 rounded-full bg-muted animate-pulse"></div>
           ) : user ? (
@@ -76,36 +88,43 @@ export default function Navbar() {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild className="md:hidden">
-                  <Link href="/dashboard" legacyBehavior passHref>
-                    <a>
+                  <Link href="/dashboard">
                       <LayoutDashboard className="mr-2 h-4 w-4" />
                       Dashboard
-                    </a>
                   </Link>
                 </DropdownMenuItem>
                  <DropdownMenuItem asChild className="md:hidden">
-                  <Link href="/assignees" legacyBehavior passHref>
-                    <a>
+                  <Link href="/assignees">
                       <Users className="mr-2 h-4 w-4" />
                       Assignees
-                    </a>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/profile" legacyBehavior passHref>
-                    <a>
+                  <Link href="/profile">
                       <UserCircle className="mr-2 h-4 w-4" />
                       Profile
-                    </a>
                   </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <p>Loading user...</p> // Fallback if user is null and not loading (should not happen with default user)
+             <nav className="flex gap-2">
+                <Button variant="outline" asChild>
+                  <Link href="/login">Login</Link>
+                </Button>
+                <Button asChild>
+                  <Link href="/register">Sign Up</Link>
+                </Button>
+              </nav>
           )}
         </div>
       </div>
     </header>
   );
 }
+

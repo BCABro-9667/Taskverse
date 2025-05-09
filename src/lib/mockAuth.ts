@@ -20,7 +20,7 @@ const USERS_COLLECTION = 'users';
 
 export async function loginUser(email: string, password_input: string): Promise<UserProfile | null> {
   const db = await getDb();
-  const collection: Collection<Omit<UserProfile, 'id'> & { _id: ObjectId }> = db.collection(USERS_COLLECTION);
+  const collection: Collection<Omit<UserProfile, 'id'> & { _id: ObjectId, password?: string }> = db.collection(USERS_COLLECTION);
   const userFromDb = await collection.findOne({ email: email });
 
   if (!userFromDb) {
@@ -33,18 +33,19 @@ export async function loginUser(email: string, password_input: string): Promise<
   const passwordMatch = userFromDb.password === password_input;
 
   if (passwordMatch) {
-    return mapMongoId(userFromDb);
+    const { password, ...userWithoutPassword } = userFromDb;
+    return mapMongoId(userWithoutPassword as Omit<UserProfile, 'id'> & { _id: ObjectId });
   }
   return null;
 }
 
 export async function registerUser(userData: Omit<UserProfile, 'id' | 'password'>, password_input: string): Promise<UserProfile | null> {
   const db = await getDb();
-  const collection: Collection<Omit<UserProfile, 'id'> & { _id: ObjectId }> = db.collection(USERS_COLLECTION);
+  const collection: Collection<Omit<UserProfile, 'id'> & { _id: ObjectId, password?: string }> = db.collection(USERS_COLLECTION);
   
   const existingUser = await collection.findOne({ email: userData.email });
   if (existingUser) {
-    return null; // User already exists
+    throw new Error('User already exists'); // Or return null and handle in action
   }
 
   // In a real app, hash the password:
@@ -57,21 +58,26 @@ export async function registerUser(userData: Omit<UserProfile, 'id' | 'password'
     password: hashedPassword, // Store the hashed password
   };
 
-  const result = await collection.insertOne(newUserDocument as any);
-  const insertedUser = await collection.findOne({ _id: result.insertedId });
+  const result = await collection.insertOne(newUserDocument as any); // `any` because _id is generated
+  const insertedUserFromDb = await collection.findOne({ _id: result.insertedId });
 
-  if (!insertedUser) {
+  if (!insertedUserFromDb) {
     throw new Error('Failed to retrieve registered user');
   }
-  return mapMongoId(insertedUser);
+  const { password, ...userWithoutPassword } = insertedUserFromDb;
+  return mapMongoId(userWithoutPassword as Omit<UserProfile, 'id'> & { _id: ObjectId });
 }
 
 export async function getUserById(userId: string): Promise<UserProfile | null> {
   const db = await getDb();
-  const collection: Collection<Omit<UserProfile, 'id'> & { _id: ObjectId }> = db.collection(USERS_COLLECTION);
+  const collection: Collection<Omit<UserProfile, 'id'> & { _id: ObjectId, password?: string }> = db.collection(USERS_COLLECTION);
   try {
     const userFromDb = await collection.findOne({ _id: toObjectId(userId) });
-    return userFromDb ? mapMongoId(userFromDb) : null;
+    if (userFromDb) {
+      const { password, ...userWithoutPassword } = userFromDb;
+      return mapMongoId(userWithoutPassword as Omit<UserProfile, 'id'> & { _id: ObjectId });
+    }
+    return null;
   } catch (error) {
     console.error(`Error fetching user by ID ${userId}:`, error);
     return null;
@@ -80,7 +86,7 @@ export async function getUserById(userId: string): Promise<UserProfile | null> {
 
 export async function updateUserProfile(userId: string, updates: Partial<UserProfile>): Promise<UserProfile | null> {
   const db = await getDb();
-  const collection: Collection<Omit<UserProfile, 'id'> & { _id: ObjectId }> = db.collection(USERS_COLLECTION);
+  const collection: Collection<Omit<UserProfile, 'id'> & { _id: ObjectId, password?: string }> = db.collection(USERS_COLLECTION);
   // Prevent password from being updated through this general profile update function
   const { password, ...safeUpdates } = updates; 
 
@@ -93,10 +99,15 @@ export async function updateUserProfile(userId: string, updates: Partial<UserPro
     if (result.modifiedCount === 0 && result.matchedCount === 0) {
       const existingUser = await collection.findOne({_id: toObjectId(userId)});
       if(!existingUser) return null; // User not found
-      return mapMongoId(existingUser); // No changes made
+      const { password: _, ...userWithoutPassword } = existingUser;
+      return mapMongoId(userWithoutPassword as Omit<UserProfile, 'id'> & { _id: ObjectId }); // No changes made
     }
     const updatedUserFromDb = await collection.findOne({ _id: toObjectId(userId) });
-    return updatedUserFromDb ? mapMongoId(updatedUserFromDb) : null;
+    if (updatedUserFromDb) {
+        const { password: _, ...userWithoutPassword } = updatedUserFromDb;
+        return mapMongoId(userWithoutPassword as Omit<UserProfile, 'id'> & { _id: ObjectId });
+    }
+    return null;
   } catch (error) {
     console.error(`Error updating user profile ${userId}:`, error);
     return null;
@@ -120,3 +131,4 @@ export async function updateUserPassword(userId: string, newPassword_input: stri
     return false;
   }
 }
+
