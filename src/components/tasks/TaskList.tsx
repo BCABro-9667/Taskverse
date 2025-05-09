@@ -3,6 +3,7 @@
 import type { Task, Assignee } from '@/types';
 import TaskItem from './TaskItem';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 interface TaskListProps {
   title: string;
