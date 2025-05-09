@@ -1,65 +1,122 @@
 
+import { getDb, toObjectId, mapMongoId } from './mongodb';
 import type { UserProfile } from '@/types';
+import type { Collection, ObjectId } from 'mongodb';
+// It's a good practice to hash passwords. Import a library like bcrypt or use Node.js crypto.
+// For this example, we'll store passwords as plain text, which is NOT secure for production.
+// import bcrypt from 'bcryptjs'; 
 
-// Simulate a database of users
-export const users: UserProfile[] = [
-  {
-    id: 'user1',
-    name: 'Demo User',
-    email: 'user@example.com',
-    profileImageUrl: 'https://picsum.photos/seed/user1/200/200',
-    companyName: 'TaskMaster Inc.',
-    companyLogoUrl: '', // Example: 'https://picsum.photos/seed/logo1/100/40' data-ai-hint="company logo"
-    companyAddress: '123 Main St, Anytown, USA',
-  },
-];
+const USERS_COLLECTION = 'users';
 
-// Simulate a password store (highly insecure, for demo only)
-const passwords: Record<string, string> = {
-  'user@example.com': 'password123',
-};
+// In a real app, use a secure password hashing library like bcrypt
+// const hashPassword = async (password: string): Promise<string> => {
+//   const salt = await bcrypt.genSalt(10);
+//   return bcrypt.hash(password, salt);
+// };
+
+// const comparePassword = async (password: string, hash: string): Promise<boolean> => {
+//   return bcrypt.compare(password, hash);
+// };
 
 export async function loginUser(email: string, password_input: string): Promise<UserProfile | null> {
-  const user = users.find((u) => u.email === email);
-  if (user && passwords[email] === password_input) {
-    return { ...user }; // Return a copy
+  const db = await getDb();
+  const collection: Collection<Omit<UserProfile, 'id'> & { _id: ObjectId }> = db.collection(USERS_COLLECTION);
+  const userFromDb = await collection.findOne({ email: email });
+
+  if (!userFromDb) {
+    return null; // User not found
+  }
+
+  // In a real app, compare hashed passwords:
+  // const passwordMatch = await comparePassword(password_input, userFromDb.password);
+  // For this example, direct comparison (INSECURE):
+  const passwordMatch = userFromDb.password === password_input;
+
+  if (passwordMatch) {
+    return mapMongoId(userFromDb);
   }
   return null;
 }
 
-export async function registerUser(userData: Omit<UserProfile, 'id'>, password_input: string): Promise<UserProfile | null> {
-  if (users.some((u) => u.email === userData.email)) {
+export async function registerUser(userData: Omit<UserProfile, 'id' | 'password'>, password_input: string): Promise<UserProfile | null> {
+  const db = await getDb();
+  const collection: Collection<Omit<UserProfile, 'id'> & { _id: ObjectId }> = db.collection(USERS_COLLECTION);
+  
+  const existingUser = await collection.findOne({ email: userData.email });
+  if (existingUser) {
     return null; // User already exists
   }
-  const newUser: UserProfile = {
+
+  // In a real app, hash the password:
+  // const hashedPassword = await hashPassword(password_input);
+  const hashedPassword = password_input; // INSECURE: Store as plain text for example
+
+  const newUserDocument = {
     ...userData,
-    id: `user${users.length + 1}`,
-    profileImageUrl: userData.profileImageUrl || `https://picsum.photos/seed/user${users.length + 1}/200/200`,
+    profileImageUrl: userData.profileImageUrl || `https://picsum.photos/seed/user${Date.now()}/200/200`,
+    password: hashedPassword, // Store the hashed password
   };
-  users.push(newUser);
-  passwords[newUser.email] = password_input;
-  return { ...newUser };
+
+  const result = await collection.insertOne(newUserDocument as any);
+  const insertedUser = await collection.findOne({ _id: result.insertedId });
+
+  if (!insertedUser) {
+    throw new Error('Failed to retrieve registered user');
+  }
+  return mapMongoId(insertedUser);
 }
 
 export async function getUserById(userId: string): Promise<UserProfile | null> {
-  const user = users.find((u) => u.id === userId);
-  return user ? { ...user } : null;
+  const db = await getDb();
+  const collection: Collection<Omit<UserProfile, 'id'> & { _id: ObjectId }> = db.collection(USERS_COLLECTION);
+  try {
+    const userFromDb = await collection.findOne({ _id: toObjectId(userId) });
+    return userFromDb ? mapMongoId(userFromDb) : null;
+  } catch (error) {
+    console.error(`Error fetching user by ID ${userId}:`, error);
+    return null;
+  }
 }
 
 export async function updateUserProfile(userId: string, updates: Partial<UserProfile>): Promise<UserProfile | null> {
-  const userIndex = users.findIndex((u) => u.id === userId);
-  if (userIndex !== -1) {
-    users[userIndex] = { ...users[userIndex], ...updates };
-    return { ...users[userIndex] };
+  const db = await getDb();
+  const collection: Collection<Omit<UserProfile, 'id'> & { _id: ObjectId }> = db.collection(USERS_COLLECTION);
+  // Prevent password from being updated through this general profile update function
+  const { password, ...safeUpdates } = updates; 
+
+  try {
+    const result = await collection.updateOne(
+      { _id: toObjectId(userId) },
+      { $set: safeUpdates }
+    );
+
+    if (result.modifiedCount === 0 && result.matchedCount === 0) {
+      const existingUser = await collection.findOne({_id: toObjectId(userId)});
+      if(!existingUser) return null; // User not found
+      return mapMongoId(existingUser); // No changes made
+    }
+    const updatedUserFromDb = await collection.findOne({ _id: toObjectId(userId) });
+    return updatedUserFromDb ? mapMongoId(updatedUserFromDb) : null;
+  } catch (error) {
+    console.error(`Error updating user profile ${userId}:`, error);
+    return null;
   }
-  return null;
 }
 
 export async function updateUserPassword(userId: string, newPassword_input: string): Promise<boolean> {
-  const user = users.find((u) => u.id === userId);
-  if (user) {
-    passwords[user.email] = newPassword_input;
-    return true;
+  const db = await getDb();
+  const collection = db.collection(USERS_COLLECTION);
+  // In a real app, hash the new password:
+  // const hashedPassword = await hashPassword(newPassword_input);
+  const hashedPassword = newPassword_input; // INSECURE
+  try {
+    const result = await collection.updateOne(
+      { _id: toObjectId(userId) },
+      { $set: { password: hashedPassword } }
+    );
+    return result.modifiedCount === 1;
+  } catch (error) {
+    console.error(`Error updating password for user ${userId}:`, error);
+    return false;
   }
-  return false;
 }

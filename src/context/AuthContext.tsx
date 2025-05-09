@@ -2,60 +2,79 @@
 "use client";
 import type { UserProfile } from '@/types';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { getUserById, users as mockUsersArray } from '@/lib/mockAuth'; // Assuming direct import path is fine
+import { getUserById, loginUser as apiLoginUser } from '@/lib/mockAuth'; // mockAuth now uses MongoDB
 
 interface AuthContextType {
   user: UserProfile | null;
   isLoading: boolean;
-  login: (userData: UserProfile) => void; // Kept for interface consistency, but will be no-op
-  logout: () => void; // Kept for interface consistency, but will be no-op
+  login: (email: string, password_input: string) => Promise<{success: boolean, error?: string}>;
+  logout: () => void;
   updateUserProfileContext: (updatedProfile: UserProfile) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Use the first user from mockAuth as the default user
-const DEFAULT_USER_ID = mockUsersArray.length > 0 ? mockUsersArray[0].id : 'user1'; // Fallback if mockUsersArray is empty
+// This can be an ID of a user you ensure exists in your MongoDB 'users' collection for demo purposes.
+// Or, if you implement a full login/register, this won't be strictly necessary after first login.
+const DEFAULT_USER_ID_FOR_NO_AUTH_MODE = "user1_mongo_default"; // Example ID, ensure this user exists or adjust logic
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate fetching the default user
-    const fetchDefaultUser = async () => {
+    const checkUserSession = async () => {
       setIsLoading(true);
-      try {
-        const fetchedUser = await getUserById(DEFAULT_USER_ID); 
-        if (fetchedUser) {
+      const storedUserId = localStorage.getItem('userId');
+      if (storedUserId) {
+        try {
+          const fetchedUser = await getUserById(storedUserId);
           setUser(fetchedUser);
-        } else {
-          // Fallback if the default user is not found (e.g. mockAuth changed)
-          // You might want to create a default mock user here if `getUserById` fails
-          console.error("Default user not found in mockAuth.ts");
-          setUser(mockUsersArray.length > 0 ? mockUsersArray[0] : null); 
+        } catch (error) {
+          console.error("Failed to fetch session user:", error);
+          localStorage.removeItem('userId'); // Clear invalid session
+          setUser(null);
         }
-      } catch (error) {
-        console.error("Failed to fetch default user:", error);
-      } finally {
-        setIsLoading(false);
+      } else {
+        // If no direct auth/login is implemented yet, you might load a default user for development
+        // For now, we assume login is required or user session is managed by login/logout
+        // console.log("No user session found. Consider loading a default user for development if needed.");
+        // Example: const defaultUser = await getUserById(DEFAULT_USER_ID_FOR_NO_AUTH_MODE); setUser(defaultUser);
       }
+      setIsLoading(false);
     };
-    fetchDefaultUser();
+    checkUserSession();
   }, []);
 
-  const login = (userData: UserProfile) => {
-    // No-op as user is now defaulted
-    console.log("Login called, but authentication is currently disabled. User data:", userData);
+  const login = async (email: string, password_input: string) => {
+    setIsLoading(true);
+    try {
+      const loggedInUser = await apiLoginUser(email, password_input);
+      if (loggedInUser) {
+        setUser(loggedInUser);
+        localStorage.setItem('userId', loggedInUser.id);
+        setIsLoading(false);
+        return { success: true };
+      } else {
+        setIsLoading(false);
+        return { success: false, error: "Invalid credentials or user not found." };
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      setIsLoading(false);
+      return { success: false, error: "An error occurred during login." };
+    }
   };
 
   const logout = () => {
-    // No-op as user is now defaulted and cannot be logged out in this setup
-    console.log("Logout called, but authentication is currently disabled.");
+    setUser(null);
+    localStorage.removeItem('userId');
+    // Optionally redirect to login page or home page
+    // router.push('/login'); 
   };
   
   const updateUserProfileContext = (updatedProfile: UserProfile) => {
-    // Only update if the updated profile matches the current default user's ID
+    // Only update if the updated profile matches the current user's ID
     if (user && updatedProfile.id === user.id) {
         setUser(updatedProfile);
     }

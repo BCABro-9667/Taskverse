@@ -1,95 +1,169 @@
 
-import type { Task, Assignee, UserProfile } from '@/types';
-import { formatISO, subDays, addDays } from 'date-fns';
+import { formatISO } from 'date-fns';
+import { getDb, toObjectId, mapMongoId, mapMongoIds } from './mongodb';
+import type { Task, Assignee } from '@/types';
+import type { Collection, ObjectId } from 'mongodb';
 
-// In-memory store
-let tasks: Task[] = [
-  { id: 'task1', title: 'Setup project repository', assigneeId: 'assignee1', dueDate: formatISO(new Date()), notes: 'Use GitHub and Next.js template', isCompleted: true, createdAt: formatISO(subDays(new Date(), 2)) },
-  { id: 'task2', title: 'Design homepage UI', assigneeId: 'assignee2', dueDate: formatISO(addDays(new Date(), 2)), notes: 'Follow Figma mockups', isCompleted: false, createdAt: formatISO(subDays(new Date(), 1)) },
-  { id: 'task3', title: 'Implement authentication', assigneeId: 'assignee1', dueDate: formatISO(addDays(new Date(), 5)), isCompleted: false, createdAt: formatISO(new Date()) },
-  { id: 'task4', title: 'Write API documentation', assigneeId: 'assignee3', dueDate: formatISO(addDays(new Date(), 7)), notes: 'Use Swagger/OpenAPI', isCompleted: false, createdAt: formatISO(addDays(new Date(),1)) },
-];
-
-let assignees: Assignee[] = [
-  { id: 'assignee1', name: 'Alice Wonderland', designation: 'Frontend Developer', status: 'active' },
-  { id: 'assignee2', name: 'Bob The Builder', designation: 'UI/UX Designer', status: 'active' },
-  { id: 'assignee3', name: 'Charlie Brown', designation: 'Backend Developer', status: 'inactive' },
-];
-
+const TASKS_COLLECTION = 'tasks';
+const ASSIGNEES_COLLECTION = 'assignees';
 
 // Task functions
 export async function getTasks(userId?: string): Promise<Task[]> {
-  // In a real app, filter tasks by userId
-  return JSON.parse(JSON.stringify(tasks)); // Return copies
+  const db = await getDb();
+  const collection: Collection<Omit<Task, 'id'> & { _id: ObjectId }> = db.collection(TASKS_COLLECTION);
+  let query = {};
+  if (userId) {
+    query = { userId }; // Assuming tasks have a userId field
+  }
+  const tasksFromDb = await collection.find(query).sort({ createdAt: -1 }).toArray();
+  return mapMongoIds(tasksFromDb);
 }
 
 export async function getTaskById(id: string): Promise<Task | undefined> {
-  return JSON.parse(JSON.stringify(tasks.find(task => task.id === id)));
+  const db = await getDb();
+  const collection: Collection<Omit<Task, 'id'> & { _id: ObjectId }> = db.collection(TASKS_COLLECTION);
+  try {
+    const taskFromDb = await collection.findOne({ _id: toObjectId(id) });
+    return taskFromDb ? mapMongoId(taskFromDb) : undefined;
+  } catch (error) {
+    console.error(`Error fetching task by ID ${id}:`, error);
+    return undefined;
+  }
 }
 
 export async function addTask(taskData: Omit<Task, 'id' | 'createdAt' | 'isCompleted'>): Promise<Task> {
-  const newTask: Task = {
+  const db = await getDb();
+  const collection: Collection<Omit<Task, 'id'> & { _id: ObjectId }> = db.collection(TASKS_COLLECTION);
+  const newTaskDocument = {
     ...taskData,
-    id: `task${Date.now()}`,
     createdAt: formatISO(new Date()),
     isCompleted: false,
   };
-  tasks.push(newTask);
-  return JSON.parse(JSON.stringify(newTask));
+  const result = await collection.insertOne(newTaskDocument as any); // `any` due to _id being generated
+  
+  const insertedTask = await collection.findOne({ _id: result.insertedId });
+  if (!insertedTask) {
+    throw new Error('Failed to retrieve inserted task');
+  }
+  return mapMongoId(insertedTask);
 }
 
 export async function updateTask(id: string, updates: Partial<Task>): Promise<Task | null> {
-  const taskIndex = tasks.findIndex(task => task.id === id);
-  if (taskIndex !== -1) {
-    tasks[taskIndex] = { ...tasks[taskIndex], ...updates };
-    return JSON.parse(JSON.stringify(tasks[taskIndex]));
+  const db = await getDb();
+  const collection: Collection<Omit<Task, 'id'> & { _id: ObjectId }> = db.collection(TASKS_COLLECTION);
+  // Remove id from updates if it exists, as we don't update _id
+  const { id: taskId, ...updateData } = updates;
+
+  try {
+    const result = await collection.updateOne(
+      { _id: toObjectId(id) },
+      { $set: updateData }
+    );
+
+    if (result.modifiedCount === 0 && result.matchedCount === 0) {
+        // If nothing matched, it might mean the task doesn't exist
+        const existingTask = await collection.findOne({ _id: toObjectId(id) });
+        if (!existingTask) return null; // Task not found
+         // Task exists but no fields were changed, return current task
+        return mapMongoId(existingTask);
+    }
+    
+    const updatedTaskFromDb = await collection.findOne({ _id: toObjectId(id) });
+    return updatedTaskFromDb ? mapMongoId(updatedTaskFromDb) : null;
+  } catch (error) {
+    console.error(`Error updating task ${id}:`, error);
+    return null;
   }
-  return null;
 }
 
 export async function deleteTask(id: string): Promise<boolean> {
-  const initialLength = tasks.length;
-  tasks = tasks.filter(task => task.id !== id);
-  return tasks.length < initialLength;
+  const db = await getDb();
+  const collection = db.collection(TASKS_COLLECTION);
+  try {
+    const result = await collection.deleteOne({ _id: toObjectId(id) });
+    return result.deletedCount === 1;
+  } catch (error) {
+    console.error(`Error deleting task ${id}:`, error);
+    return false;
+  }
 }
 
 // Assignee functions
 export async function getAssignees(): Promise<Assignee[]> {
-  return JSON.parse(JSON.stringify(assignees));
+  const db = await getDb();
+  const collection: Collection<Omit<Assignee, 'id'> & { _id: ObjectId }> = db.collection(ASSIGNEES_COLLECTION);
+  const assigneesFromDb = await collection.find().toArray();
+  return mapMongoIds(assigneesFromDb);
 }
 
 export async function getAssigneeById(id: string): Promise<Assignee | undefined> {
-    return JSON.parse(JSON.stringify(assignees.find(a => a.id === id)));
+  const db = await getDb();
+  const collection: Collection<Omit<Assignee, 'id'> & { _id: ObjectId }> = db.collection(ASSIGNEES_COLLECTION);
+  try {
+    const assigneeFromDb = await collection.findOne({ _id: toObjectId(id) });
+    return assigneeFromDb ? mapMongoId(assigneeFromDb) : undefined;
+  } catch (error) {
+    console.error(`Error fetching assignee by ID ${id}:`, error);
+    return undefined;
+  }
 }
 
-// Renamed from addAssignee to addAssigneeData to avoid confusion with action
 export async function addAssigneeData(assigneeData: Omit<Assignee, 'id'>): Promise<Assignee> {
-  const newAssignee: Assignee = {
-    id: `assignee${Date.now()}`,
+  const db = await getDb();
+  const collection: Collection<Omit<Assignee, 'id'> & { _id: ObjectId }> = db.collection(ASSIGNEES_COLLECTION);
+  const newAssigneeDocument = {
     name: assigneeData.name,
     designation: assigneeData.designation,
-    status: assigneeData.status || 'active', // Default to active if not provided
+    status: assigneeData.status || 'active',
   };
-  assignees.push(newAssignee);
-  return JSON.parse(JSON.stringify(newAssignee));
+  const result = await collection.insertOne(newAssigneeDocument as any);
+  const insertedAssignee = await collection.findOne({ _id: result.insertedId });
+  if (!insertedAssignee) {
+    throw new Error('Failed to retrieve inserted assignee');
+  }
+  return mapMongoId(insertedAssignee);
 }
 
 export async function updateAssigneeData(id: string, updates: Partial<Omit<Assignee, 'id'>>): Promise<Assignee | null> {
-  const assigneeIndex = assignees.findIndex(a => a.id === id);
-  if (assigneeIndex !== -1) {
-    assignees[assigneeIndex] = { ...assignees[assigneeIndex], ...updates };
-    return JSON.parse(JSON.stringify(assignees[assigneeIndex]));
+  const db = await getDb();
+  const collection: Collection<Omit<Assignee, 'id'> & { _id: ObjectId }> = db.collection(ASSIGNEES_COLLECTION);
+  const { id: assigneeId, ...updateData } = updates;
+
+  try {
+    const result = await collection.updateOne(
+      { _id: toObjectId(id) },
+      { $set: updateData }
+    );
+    
+    if (result.modifiedCount === 0 && result.matchedCount === 0) {
+        const existingAssignee = await collection.findOne({ _id: toObjectId(id) });
+        if(!existingAssignee) return null; // Assignee not found
+        return mapMongoId(existingAssignee); // No changes made
+    }
+
+    const updatedAssigneeFromDb = await collection.findOne({ _id: toObjectId(id) });
+    return updatedAssigneeFromDb ? mapMongoId(updatedAssigneeFromDb) : null;
+  } catch (error) {
+    console.error(`Error updating assignee ${id}:`, error);
+    return null;
   }
-  return null;
 }
 
 export async function deleteAssigneeData(id: string): Promise<boolean> {
-  const initialLength = assignees.length;
-  assignees = assignees.filter(a => a.id !== id);
-  return assignees.length < initialLength;
+  const db = await getDb();
+  const collection = db.collection(ASSIGNEES_COLLECTION);
+  try {
+    const result = await collection.deleteOne({ _id: toObjectId(id) });
+    return result.deletedCount === 1;
+  } catch (error) {
+    console.error(`Error deleting assignee ${id}:`, error);
+    return false;
+  }
 }
 
-
 export async function getAssigneeByName(name: string): Promise<Assignee | undefined> {
-  return JSON.parse(JSON.stringify(assignees.find(a => a.name === name)));
+  const db = await getDb();
+  const collection: Collection<Omit<Assignee, 'id'> & { _id: ObjectId }> = db.collection(ASSIGNEES_COLLECTION);
+  const assigneeFromDb = await collection.findOne({ name: name });
+  return assigneeFromDb ? mapMongoId(assigneeFromDb) : undefined;
 }
