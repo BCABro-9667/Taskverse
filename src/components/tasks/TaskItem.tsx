@@ -10,7 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
-import { Edit3, Trash2, MessageSquarePlus, Check, Save, X } from 'lucide-react';
+import { Edit3, Trash2, MessageSquarePlus, Check, Save, X, CalendarDays, User, ClipboardList } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -66,17 +66,24 @@ export default function TaskItem({ task, assignee, onToggleComplete, onDelete, o
           <div className="flex-grow min-w-0"> {/* Ensure flex-grow can shrink if needed */}
             <div className="flex items-start justify-between w-full space-x-2">
               {/* Left Part: Title, Assignee, Due Date */}
-              <div className="flex-grow min-w-0 mr-2 space-y-0.5"> {/* min-w-0 allows shrinking */}
-                <h3 className={cn(
-                  "text-base font-semibold break-words",
-                  task.isCompleted ? 'line-through text-muted-foreground' : 'text-foreground'
-                )}>
-                  {task.title}
-                </h3>
-                <div className="text-xs text-muted-foreground space-x-2">
-                  <span>Due: {format(parseISO(task.dueDate), 'MMM d, yyyy')}</span>
+              <div className="flex-grow min-w-0 mr-2 space-y-0.5">
+                <div className="flex items-center">
+                  <ClipboardList className="h-4 w-4 mr-2 text-primary flex-shrink-0" />
+                  <h3 className={cn(
+                    "text-base font-semibold break-words",
+                    task.isCompleted ? 'line-through text-muted-foreground' : 'text-foreground'
+                  )}>
+                    {task.title}
+                  </h3>
+                </div>
+                <div className="text-xs text-muted-foreground space-x-2 pl-6"> {/* Indent details under title icon */}
+                  <span className="inline-flex items-center">
+                    <CalendarDays className="mr-1 h-3 w-3" />
+                    Due: {format(parseISO(task.dueDate), 'MMM d, yyyy')}
+                  </span>
                   {assignee && (
-                    <span>
+                    <span className="inline-flex items-center">
+                      <User className="mr-1 h-3 w-3" />
                       Assignee: {' '}
                       <Link href={`/tasks/${assignee.name.replace(/\s+/g, '-')}`} className="text-primary hover:underline">
                         {assignee.name}
@@ -109,7 +116,6 @@ export default function TaskItem({ task, assignee, onToggleComplete, onDelete, o
                 )}
                 {!isEditingNotes && task.notes && (
                   <div className="text-xs text-muted-foreground whitespace-pre-wrap bg-secondary/50 p-1.5 rounded-md max-h-20 overflow-y-auto custom-scrollbar">
-                    <p className="font-semibold text-xs mb-0.5 text-foreground/80">Notes:</p>
                     {task.notes}
                   </div>
                 )}
