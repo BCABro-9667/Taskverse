@@ -10,7 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
-import { Edit3, Trash2, MessageSquarePlus, Check, Save, X, CalendarDays, User, ClipboardList } from 'lucide-react';
+import { Edit3, Trash2, MessageSquarePlus, Check, Save, X, CalendarDays, User, StickyNote } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -67,16 +67,13 @@ export default function TaskItem({ task, assignee, onToggleComplete, onDelete, o
             <div className="flex items-start justify-between w-full space-x-2">
               {/* Left Part: Title, Assignee, Due Date */}
               <div className="flex-grow min-w-0 mr-2 space-y-0.5">
-                <div className="flex items-center">
-                  <ClipboardList className="h-4 w-4 mr-2 text-primary flex-shrink-0" />
-                  <h3 className={cn(
+                <h3 className={cn(
                     "text-base font-semibold break-words",
                     task.isCompleted ? 'line-through text-muted-foreground' : 'text-foreground'
                   )}>
                     {task.title}
-                  </h3>
-                </div>
-                <div className="text-xs text-muted-foreground space-x-2 pl-6"> {/* Indent details under title icon */}
+                </h3>
+                <div className="text-xs text-muted-foreground space-x-2"> {/* Removed pl-6 */}
                   <span className="inline-flex items-center">
                     <CalendarDays className="mr-1 h-3 w-3" />
                     Due: {format(parseISO(task.dueDate), 'MMM d, yyyy')}
@@ -115,13 +112,15 @@ export default function TaskItem({ task, assignee, onToggleComplete, onDelete, o
                   </div>
                 )}
                 {!isEditingNotes && task.notes && (
-                  <div className="text-xs text-muted-foreground whitespace-pre-wrap bg-secondary/50 p-1.5 rounded-md max-h-20 overflow-y-auto custom-scrollbar">
-                    {task.notes}
+                  <div className="flex items-start text-xs text-muted-foreground whitespace-pre-wrap bg-secondary/50 p-1.5 rounded-md max-h-20 overflow-y-auto custom-scrollbar">
+                    <StickyNote className="h-3.5 w-3.5 mr-1.5 flex-shrink-0 mt-0.5 text-muted-foreground" />
+                    <span className="flex-grow">{task.notes}</span>
                   </div>
                 )}
                 {!isEditingNotes && !task.notes && (
-                  <div className="text-xs text-muted-foreground p-1.5 rounded-md italic">
-                    No notes.
+                  <div className="flex items-center text-xs text-muted-foreground p-1.5 rounded-md italic">
+                     <StickyNote className="h-3.5 w-3.5 mr-1.5 flex-shrink-0 text-muted-foreground" />
+                     <span>No notes.</span>
                   </div>
                 )}
               </div>
