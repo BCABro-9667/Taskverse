@@ -6,6 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Printer, Circle, CheckCircle2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
+import { useEffect, useState } from 'react';
+import { cn } from '@/lib/utils';
+
 
 interface AssigneeTaskViewProps {
   assignee: Assignee;
@@ -13,8 +16,14 @@ interface AssigneeTaskViewProps {
 }
 
 export default function AssigneeTaskView({ assignee, tasks }: AssigneeTaskViewProps) {
+  const [currentPrintDate, setCurrentPrintDate] = useState<string>('');
+
+  useEffect(() => {
+    setCurrentPrintDate(format(new Date(), 'PPP'));
+  }, []);
+
   const pendingTasks = tasks.filter(task => !task.isCompleted);
-  const completedTasks = tasks.filter(task => task.isCompleted);
+  const completedTasks = tasks.filter(task => !task.isCompleted);
 
   const handlePrint = () => {
     window.print();
@@ -41,7 +50,7 @@ export default function AssigneeTaskView({ assignee, tasks }: AssigneeTaskViewPr
         <div className="print-only mb-4 hidden"> {/* Hidden by default, shown only on print */}
             <h1 className="text-xl font-bold">Pending Tasks for: {assignee.name}</h1>
             {assignee.designation && (<p className="text-sm text-gray-600">{assignee.designation}</p>)}
-            <p className="text-sm text-gray-600">Date: {format(new Date(), 'PPP')}</p>
+            {currentPrintDate && <p className="text-sm text-gray-600">Date: {currentPrintDate}</p>}
             <Separator className="my-2"/>
         </div>
         
